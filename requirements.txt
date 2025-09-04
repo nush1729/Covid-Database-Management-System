@@ -1,0 +1,9 @@
+flask
+flask-jwt-extended
+flask_sqlalchemy
+flask_marshmallow
+marshmallow
+psycopg2-binary
+flask-cors
+pandas
+scikit-learn
