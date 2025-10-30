@@ -65,67 +65,111 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10">
-      <div className="w-full max-w-md p-6">
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
-              <Activity className="w-8 h-8 text-primary-foreground" />
-            </div>
-          </div>
-          <h1 className="text-3xl font-bold text-foreground">COVID-19 DBMS</h1>
-          <p className="text-muted-foreground mt-2">Database Management System</p>
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Sign In</CardTitle>
-            <CardDescription>Choose your portal to access the system</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="admin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="admin">Admin Portal</TabsTrigger>
-                <TabsTrigger value="patient">Patient Portal</TabsTrigger>
-              </TabsList>
-              <TabsContent value="admin">
-                <form onSubmit={handleAdminLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-email">Email</Label>
-                    <Input id="admin-email" name="email" type="email" placeholder="admin@covid.com" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-password">Password</Label>
-                    <Input id="admin-password" name="password" type="password" placeholder="Enter your password" required />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Signing in..." : "Sign In as Admin"}
-                  </Button>
-                  <p className="text-xs text-muted-foreground text-center">Use your admin credentials</p>
-                </form>
-              </TabsContent>
-              <TabsContent value="patient">
-                <form onSubmit={handlePatientLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="patient-email">Email</Label>
-                    <Input id="patient-email" name="email" type="email" placeholder="your.name@mail.in" required />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="patient-password">Password</Label>
-                    <Input id="patient-password" name="password" type="password" placeholder="Enter your password" required />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? "Signing in..." : "Sign In as Patient"}
-                  </Button>
-                  <p className="text-xs text-muted-foreground text-center">Use your registered email and password</p>
-                  <p className="text-xs text-center mt-2">
-                    New here? <Link to="/signup" className="underline">Create an account</Link>
-                  </p>
-                </form>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+    // Main container with your background image
+    <div
+      className="min-h-screen w-full flex flex-col items-center justify-center bg-cover bg-center p-4"
+      style={{ backgroundImage: 'url(/login-background.jpg)' }}
+    >
+      {/* Semi-transparent overlay for better text readability */}
+      <div className="absolute inset-0 bg-black/50 z-0" />
+
+      {/* Content container */}
+      <div className="z-10 text-center mb-8">
+        {/* New large, bold title with an icon */}
+        <h1 className="text-5xl font-bold text-white shadow-md flex items-center justify-center gap-4">
+          <Activity className="h-12 w-12" />
+          <span>Covid 19 Portal</span>
+        </h1>
       </div>
+
+      {/* Login Card with a fade-in-up animation */}
+      <Card className="w-full max-w-md z-10 animate-fade-in-up">
+        <CardHeader>
+          {/* Bigger "Sign In" text */}
+          <CardTitle className="text-3xl">Sign In</CardTitle>
+          <CardDescription>Choose your portal to access the system</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="admin" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="admin">Admin Portal</TabsTrigger>
+              <TabsTrigger value="patient">Patient Portal</TabsTrigger>
+            </TabsList>
+            <TabsContent value="admin">
+              <form onSubmit={handleAdminLogin} className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="admin-email">Email</Label>
+                  <Input
+                    id="admin-email"
+                    name="email"
+                    type="email"
+                    placeholder="admin@covid.com"
+                    required
+                    className="transition-all duration-300 ease-in-out focus:scale-105"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="admin-password">Password</Label>
+                  <Input
+                    id="admin-password"
+                    name="password"
+                    type="password"
+                    placeholder="Enter your password"
+                    required
+                    className="transition-all duration-300 ease-in-out focus:scale-105"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full transition-all duration-300 ease-in-out hover:scale-105"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Signing in..." : "Sign In as Admin"}
+                </Button>
+              </form>
+            </TabsContent>
+            <TabsContent value="patient">
+              <form onSubmit={handlePatientLogin} className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="patient-email">Email</Label>
+                  <Input
+                    id="patient-email"
+                    name="email"
+                    type="email"
+                    placeholder="your.name@mail.in"
+                    required
+                    className="transition-all duration-300 ease-in-out focus:scale-105"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="patient-password">Password</Label>
+                  <Input
+                    id="patient-password"
+                    name="password"
+                    type="password"
+                    placeholder="Enter your password"
+                    required
+                    className="transition-all duration-300 ease-in-out focus:scale-105"
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full transition-all duration-300 ease-in-out hover:scale-105"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Signing in..." : "Sign In as Patient"}
+                </Button>
+                <div className="mt-4 text-center text-sm">
+                  Don&apos;t have an account?{" "}
+                  <Link to="/signup" className="underline">
+                    Sign up
+                  </Link>
+                </div>
+              </form>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
     </div>
   );
 };

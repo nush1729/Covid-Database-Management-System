@@ -171,6 +171,28 @@ const PatientsManagement = ({ onUpdate }: PatientsManagementProps) => {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  defaultValue={editingPatient?.email}
+                  autoComplete="username"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  minLength={6}
+                  required={!editingPatient}
+                  autoComplete="new-password"
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="dob">Date of Birth</Label>
                 <Input
                   id="dob"

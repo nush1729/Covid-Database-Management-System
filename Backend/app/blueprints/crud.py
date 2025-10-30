@@ -29,15 +29,46 @@ def list_users():
 def create_user():
     from ..extensions import bcrypt
     data = request.get_json() or {}
-    if "password" in data:
-        data["password"] = bcrypt.generate_password_hash(data["password"]).decode()
+    
+    # Add validation for required fields
+    required_fields = ["first_name", "last_name", "name", "email", "password", "role"]
+    if not all(field in data and data[field] for field in required_fields):
+        return jsonify({"error": "Missing required fields"}), 400
+
     with SessionLocal() as s:
-        row = User(**data)
+        # Check if email already exists
+        if s.scalar(select(User).where(User.email == data["email"])):
+            return jsonify({"error": "Email already exists"}), 400
+            
+        if "password" in data:
+            data["password"] = bcrypt.generate_password_hash(data["password"]).decode()
+
+        # Create user
+        # Manually create the user object to avoid passing extra fields from the request
+        user_data = {
+            "first_name": data["first_name"],
+            "last_name": data["last_name"],
+            "name": data["name"],
+            "email": data["email"],
+            "password": data["password"],
+            "role": data["role"],
+        }
+        row = User(**user_data)
         s.add(row)
         s.flush()
-        # auto-create patient for role user if not exists
+        
+        # Auto-create patient for role 'user' if not exists
         if row.role == UserRole.user and not s.get(Patient, row.id):
-            s.add(Patient(id=row.id, first_name=row.first_name, last_name=row.last_name, name=row.name, contact=data.get("contact",""), dob=data.get("dob","2000-01-01")))
+            patient_data = {
+                "id": row.id,
+                "first_name": row.first_name,
+                "last_name": row.last_name,
+                "name": row.name,
+                "contact": data.get("contact", ""),
+                "dob": data.get("dob", "2000-01-01")
+            }
+            s.add(Patient(**patient_data))
+            
         s.commit()
         s.refresh(row)
         return jsonify(to_dict(row)), 201
