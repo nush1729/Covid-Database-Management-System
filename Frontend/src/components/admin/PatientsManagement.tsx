@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Plus, Pencil, Trash2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 import { toast } from "sonner";
 
 interface PatientsManagementProps {
@@ -36,71 +36,81 @@ const PatientsManagement = ({ onUpdate }: PatientsManagementProps) => {
   }, []);
 
   const loadPatients = async () => {
-    const { data, error } = await supabase
-      .from("patients")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
+    try {
+      const res = await fetch(`${API_BASE}/api/patients`, {
+        headers: { Authorization: `Bearer ${sessionStorage.getItem("jwt") || ""}` },
+      });
+      const data = await res.json();
+      setPatients(data || []);
+    } catch {
       toast.error("Failed to load patients");
-      return;
     }
-
-    setPatients(data || []);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
+    // Admin should create a user + patient via POST /api/users for new patients
+    const isEdit = Boolean(editingPatient);
     const patientData = {
       first_name: formData.get("first_name") as string,
       last_name: formData.get("last_name") as string,
-      name: `${formData.get("first_name")} ${formData.get("last_name")}`,
+      name: `${formData.get("first_name")} ${formData.get("last_name")}`.trim(),
       contact: formData.get("contact") as string,
       dob: formData.get("dob") as string,
+      email: formData.get("email") as string,
+      password: formData.get("password") as string,
+      role: "user",
     };
 
-    if (editingPatient) {
-      const { error } = await supabase
-        .from("patients")
-        .update(patientData)
-        .eq("id", editingPatient.id);
-
-      if (error) {
-        toast.error("Failed to update patient");
-        return;
+    try {
+      if (isEdit) {
+        // Editing a patient (still via /api/patients/PID)
+        const res = await fetch(`${API_BASE}/api/patients/${editingPatient.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionStorage.getItem("jwt") || ""}` },
+          body: JSON.stringify(patientData),
+        });
+        if (!res.ok) throw new Error();
+        toast.success("Patient updated successfully");
+      } else {
+        // Create both user and patient via /api/users
+        const res = await fetch(`${API_BASE}/api/users`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionStorage.getItem("jwt") || ""}` },
+          body: JSON.stringify(patientData),
+        });
+        if (!res.ok) {
+          const msg = await res.text();
+          throw new Error(msg);
+        }
+        toast.success("Patient created successfully");
       }
-
-      toast.success("Patient updated successfully");
-    } else {
-      const { error } = await supabase.from("patients").insert([patientData]);
-
-      if (error) {
-        toast.error("Failed to create patient");
-        return;
-      }
-
-      toast.success("Patient created successfully");
+    } catch (err: any) {
+      toast.error("Failed to save patient: " + (err?.message || "Unknown error"));
+      return;
     }
-
     setIsOpen(false);
     setEditingPatient(null);
     loadPatients();
-    onUpdate();
+    onUpdate && onUpdate();
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this patient?")) return;
 
-    const { error } = await supabase.from("patients").delete().eq("id", id);
-
-    if (error) {
+    try {
+      const res = await fetch(`${API_BASE}/api/patients/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${sessionStorage.getItem("jwt") || ""}` },
+      });
+      if (!res.ok) throw new Error();
+      toast.success("Patient deleted successfully");
+    } catch {
       toast.error("Failed to delete patient");
       return;
     }
-
-    toast.success("Patient deleted successfully");
     loadPatients();
     onUpdate();
   };

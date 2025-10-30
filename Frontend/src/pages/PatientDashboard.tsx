@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Activity, FileText, Syringe, LogOut } from "lucide-react";
+import { Activity, FileText, Syringe, LogOut, HelpCircle, Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 import {
   Table,
   TableBody,
@@ -24,12 +25,23 @@ const PatientDashboard = () => {
     const userRole = sessionStorage.getItem("userRole");
     const patientId = sessionStorage.getItem("patientId");
     
-    if (userRole !== "patient" || !patientId) {
+    if (userRole !== "user" || !patientId) {
       navigate("/");
       return;
     }
 
     loadPatientData(patientId);
+    // fetch notifications for patient and toast them
+    fetch(`${API_BASE}/api/notifications/me`, {
+      headers: { Authorization: `Bearer ${sessionStorage.getItem("jwt") || ""}` },
+    })
+      .then((r) => r.json())
+      .then((json) => {
+        (json.notifications || []).forEach((n: any) => {
+          toast(n.title + ": " + n.message);
+        });
+      })
+      .catch(() => {});
   }, [navigate]);
 
   const loadPatientData = async (patientId: string) => {
@@ -107,7 +119,19 @@ const PatientDashboard = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-6 py-8">
+      <main className="container mx-auto px-6 py-8 grid grid-cols-1 md:grid-cols-4 gap-6">
+        <aside className="md:col-span-1 space-y-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Menu</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <div className="flex items-center gap-2"><Bell className="w-4 h-4"/> Notifications appear as popups</div>
+              <div className="flex items-center gap-2"><HelpCircle className="w-4 h-4"/> Help: Contact hospital helpline 1075</div>
+            </CardContent>
+          </Card>
+        </aside>
+        <section className="md:col-span-3">
         {/* Patient Info Card */}
         {patientInfo && (
           <Card className="mb-8">
@@ -209,6 +233,7 @@ const PatientDashboard = () => {
             )}
           </CardContent>
         </Card>
+        </section>
       </main>
     </div>
   );

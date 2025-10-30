@@ -4,14 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Activity, Users, Syringe, MapPin, FileText, BarChart3, LogOut } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 import { toast } from "sonner";
 import PatientsManagement from "@/components/admin/PatientsManagement";
 import CaseRecordsManagement from "@/components/admin/CaseRecordsManagement";
 import VaccinationsManagement from "@/components/admin/VaccinationsManagement";
 import LocationsManagement from "@/components/admin/LocationsManagement";
-import StateStatsManagement from "@/components/admin/StateStatsManagement";
 import PredictionsView from "@/components/admin/PredictionsView";
+import NotificationsView from "@/components/admin/NotificationsView";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -35,31 +35,16 @@ const AdminDashboard = () => {
 
   const loadStats = async () => {
     try {
-      // Get total patients
-      const { count: patientsCount } = await supabase
-        .from("patients")
-        .select("*", { count: "exact", head: true });
-
-      // Get case statistics
-      const { data: caseRecords } = await supabase
-        .from("case_records")
-        .select("status");
-
-      const activeCases = caseRecords?.filter(r => r.status === "active").length || 0;
-      const recovered = caseRecords?.filter(r => r.status === "recovered").length || 0;
-      const deaths = caseRecords?.filter(r => r.status === "death").length || 0;
-
-      // Get total vaccinations
-      const { count: vaccinationsCount } = await supabase
-        .from("vaccinations")
-        .select("*", { count: "exact", head: true });
-
+      const res = await fetch(`${API_BASE}/api/admin/metrics`, {
+        headers: { Authorization: `Bearer ${sessionStorage.getItem("jwt") || ""}` },
+      });
+      const j = await res.json();
       setStats({
-        totalPatients: patientsCount || 0,
-        activeCases,
-        recovered,
-        deaths,
-        vaccinations: vaccinationsCount || 0,
+        totalPatients: j.patients || 0,
+        activeCases: j.active || 0,
+        recovered: j.recovered || 0,
+        deaths: j.deaths || 0,
+        vaccinations: j.vaccinations || 0,
       });
     } catch (error) {
       toast.error("Failed to load statistics");
@@ -85,10 +70,13 @@ const AdminDashboard = () => {
               <p className="text-sm text-muted-foreground">Admin Dashboard</p>
             </div>
           </div>
-          <Button variant="outline" onClick={handleLogout}>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => navigate("/patient")}>View Patient Portal</Button>
+            <Button variant="outline" onClick={handleLogout}>
             <LogOut className="w-4 h-4 mr-2" />
             Logout
-          </Button>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -181,13 +169,13 @@ const AdminDashboard = () => {
                   <MapPin className="w-4 h-4 mr-2" />
                   Locations
                 </TabsTrigger>
-                <TabsTrigger value="stats">
-                  <BarChart3 className="w-4 h-4 mr-2" />
-                  State Stats
-                </TabsTrigger>
                 <TabsTrigger value="predictions">
                   <BarChart3 className="w-4 h-4 mr-2" />
                   Predictions
+                </TabsTrigger>
+                <TabsTrigger value="notifications">
+                  <Activity className="w-4 h-4 mr-2" />
+                  Notifications
                 </TabsTrigger>
               </TabsList>
 
@@ -207,12 +195,13 @@ const AdminDashboard = () => {
                 <LocationsManagement />
               </TabsContent>
 
-              <TabsContent value="stats" className="mt-6">
-                <StateStatsManagement />
-              </TabsContent>
 
               <TabsContent value="predictions" className="mt-6">
                 <PredictionsView />
+              </TabsContent>
+
+              <TabsContent value="notifications" className="mt-6">
+                <NotificationsView />
               </TabsContent>
             </Tabs>
           </CardContent>
