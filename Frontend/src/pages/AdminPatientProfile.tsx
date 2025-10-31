@@ -11,7 +11,7 @@ const AdminPatientProfile = () => {
 
   useEffect(() => {
     const role = sessionStorage.getItem("userRole");
-    if (role !== "admin") { navigate("/"); return; }
+    if (role !== "admin" && role !== "manager") { navigate("/"); return; }
     load();
   }, [id, navigate]);
 

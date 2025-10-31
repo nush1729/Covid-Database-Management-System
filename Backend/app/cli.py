@@ -94,9 +94,10 @@ def seed():
             # one or two vaccinations
             if not s.scalar(select(Vaccination).where(Vaccination.patient_id==p.id)):
                 first_date = today - timedelta(days=200)
-                s.add(Vaccination(patient_id=p.id, date=first_date, vaccine_type=choice(vaccines)))
-                # randomly add second dose
+                first_vax_type = choice(vaccines)
+                s.add(Vaccination(patient_id=p.id, date=first_date, vaccine_type=first_vax_type))
+                # randomly add second dose - MUST use same vaccine type as first dose
                 if idx % 2 == 0:
-                    s.add(Vaccination(patient_id=p.id, date=first_date + timedelta(days=30), vaccine_type=choice(vaccines)))
+                    s.add(Vaccination(patient_id=p.id, date=first_date + timedelta(days=30), vaccine_type=first_vax_type))
         s.commit()
         print("Seed complete. Admin user is managed via schema.sql migration.")

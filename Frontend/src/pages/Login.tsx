@@ -30,8 +30,18 @@ const Login = () => {
       sessionStorage.setItem("jwt", json.token);
       sessionStorage.setItem("userRole", json.user.role);
       sessionStorage.setItem("userId", json.user.id);
-      toast.success("Admin login successful");
-      navigate("/admin");
+      
+      // Redirect based on role
+      if (json.user.role === "manager") {
+        toast.success("Manager login successful");
+        navigate("/manager");
+      } else if (json.user.role === "admin") {
+        toast.success("Admin login successful");
+        navigate("/admin");
+      } else {
+        toast.error("Invalid portal access");
+        navigate("/");
+      }
     } catch {
       toast.error("Invalid admin credentials");
     }

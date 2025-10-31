@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import AdminDashboard from "./pages/AdminDashboard";
+import ManagerDashboard from "./pages/ManagerDashboard";
 import PatientDashboard from "./pages/PatientDashboard";
 import AdminPatientProfile from "./pages/AdminPatientProfile";
 import NotFound from "./pages/NotFound";
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/signup" element={<Signup />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/patient/:id" element={<AdminPatientProfile />} />
+          <Route path="/manager" element={<ManagerDashboard />} />
           <Route path="/patient" element={<PatientDashboard />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

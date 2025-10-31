@@ -9,6 +9,7 @@ import enum
 class UserRole(str, enum.Enum):
     admin = "admin"
     user = "user"
+    manager = "manager"
 
 class User(Base):
     __tablename__ = "users"

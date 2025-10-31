@@ -19,7 +19,7 @@ BEGIN
 END $$;
 -- Create user roles enum
 DO $$ BEGIN
-  CREATE TYPE public.user_role AS ENUM ('admin', 'user');
+  CREATE TYPE public.user_role AS ENUM ('admin', 'user', 'manager');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 -- No enum for vaccination; keep only user_role enum
 
@@ -181,10 +181,16 @@ CREATE TABLE IF NOT EXISTS public.roles (
 );
 INSERT INTO public.roles(role) VALUES ('admin') ON CONFLICT DO NOTHING;
 INSERT INTO public.roles(role) VALUES ('user') ON CONFLICT DO NOTHING;
+INSERT INTO public.roles(role) VALUES ('manager') ON CONFLICT DO NOTHING;
 
 -- Seed initial admin user using bcrypt via pgcrypto
 INSERT INTO public.users (first_name, last_name, name, email, password, role)
 VALUES ('Admin', 'India', 'Admin India', 'admin@covid.in', crypt('Admin@123', gen_salt('bf')), 'admin')
+ON CONFLICT (email) DO NOTHING;
+
+-- Seed initial manager user using bcrypt via pgcrypto
+INSERT INTO public.users (first_name, last_name, name, email, password, role)
+VALUES ('Manager', 'India', 'Manager India', 'manager@covid.in', crypt('Manager@123', gen_salt('bf')), 'manager')
 ON CONFLICT (email) DO NOTHING;
 
 -- Seed demo regular users and linked patients
@@ -305,13 +311,18 @@ WHERE NOT EXISTS (
 );
 
 -- Add a second dose 180 days after first for half of patients
+-- IMPORTANT: Second dose must use the SAME vaccine type as first dose
 INSERT INTO public.vaccinations (patient_id, date, vaccine_type)
-SELECT p.id,
-       (CURRENT_DATE - INTERVAL '20 days')::date AS date,
-       (ARRAY['covaxin','covishield','sputnik'])[1 + floor(random()*3)]
+SELECT 
+  p.id,
+  (CURRENT_DATE - INTERVAL '20 days')::date AS date,
+  (SELECT v.vaccine_type FROM public.vaccinations v 
+   WHERE v.patient_id = p.id 
+   ORDER BY v.date ASC 
+   LIMIT 1) AS vaccine_type
 FROM public.patients p
 WHERE (get_byte(digest(p.id::text, 'sha1'), 0) % 2) = 1
-  AND (SELECT count(*) FROM public.vaccinations v WHERE v.patient_id = p.id) < 2;
+  AND (SELECT count(*) FROM public.vaccinations v WHERE v.patient_id = p.id) = 1;
 
 -- Create deterministic 3 patients with one dose due tomorrow (179 days ago)
 DELETE FROM public.vaccinations v

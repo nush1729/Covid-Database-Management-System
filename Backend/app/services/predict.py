@@ -6,7 +6,7 @@ from ..config import Config
 
 bp = Blueprint("predict", __name__, url_prefix="/api/predict")
 
-# Assumes CSV columns: state, date, confirmed, recovered, active, deaths
+
 @bp.get("/states")
 def list_states():
     # Auto-detect delimiter; normalize columns
@@ -43,7 +43,7 @@ def forecast_state(state: str):
         agg_map = {v: 'sum' for v in val_cols.values()}
         df = grp.agg(agg_map)
     else:
-        # No dates: treat file order as time; create synthetic dates per state
+      
         df = df.reset_index(drop=True)
         df['__idx'] = df.groupby('state').cumcount()
         start = pd.Timestamp.today().normalize() - pd.Timedelta(days=df['__idx'].max() + horizon + 30)

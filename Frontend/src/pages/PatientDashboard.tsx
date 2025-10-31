@@ -20,6 +20,7 @@ const PatientDashboard = () => {
   const [patientInfo, setPatientInfo] = useState<any>(null);
   const [caseRecords, setCaseRecords] = useState<any[]>([]);
   const [vaccinations, setVaccinations] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
 
   useEffect(() => {
     const userRole = sessionStorage.getItem("userRole");
@@ -33,15 +34,16 @@ const PatientDashboard = () => {
     loadPatientData(patientId);
     // fetch notifications for patient and toast them
     fetch(`${API_BASE}/api/notifications/me`, {
-      headers: { Authorization: `Bearer ${sessionStorage.getItem("jwt") || ""}` },
+      headers: { Authorization: `Bearer ${sessionStorage.getItem("jwt") || ""}` }
     })
-      .then((r) => r.json())
-      .then((json) => {
-        (json.notifications || []).forEach((n: any) => {
-          toast(n.title + ": " + n.message);
-        });
-      })
-      .catch(() => {});
+    .then((r) => r.json())
+    .then((json) => {
+      setNotifications(json.notifications || []);
+      (json.notifications || []).forEach((n: any) => {
+        toast(n.title + ": " + n.message);
+      });
+    })
+    .catch(() => setNotifications([]));
   }, [navigate]);
 
   const loadPatientData = async (patientId: string) => {
@@ -121,6 +123,21 @@ const PatientDashboard = () => {
 
       <main className="container mx-auto px-6 py-8 grid grid-cols-1 md:grid-cols-4 gap-6">
         <aside className="md:col-span-1 space-y-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Notifications</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              {notifications.length === 0
+                ? <span className="text-muted-foreground">No notifications yet.</span>
+                : notifications.map((n, i) => (
+                    <div key={i} className="mb-2 p-2 rounded bg-yellow-50 border-l-4 border-yellow-400">
+                      <strong>{n.title}</strong><br/>{n.message}
+                    </div>
+                  ))
+              }
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <CardTitle>Menu</CardTitle>

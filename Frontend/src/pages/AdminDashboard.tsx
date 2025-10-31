@@ -25,12 +25,15 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     const userRole = sessionStorage.getItem("userRole");
-    if (userRole !== "admin") {
+    if (userRole !== "admin" && userRole !== "manager") {
       navigate("/");
       return;
     }
 
-    loadStats();
+    // Only admins can load stats (managers will see errors if they try to access admin endpoints)
+    if (userRole === "admin") {
+      loadStats();
+    }
   }, [navigate]);
 
   const loadStats = async () => {
