@@ -1,3 +1,4 @@
+# Flask and SQLAlchemy imports
 from flask import Blueprint, request, jsonify
 from sqlalchemy import select, func
 from ..extensions import SessionLocal
@@ -6,20 +7,41 @@ from ..utils.auth import require_auth
 import uuid
 import re
 
+# Validation functions for user input
+def validate_password(password: str) -> tuple[bool, str]:
+    """Validate password: at least one special character and length > 5"""
+    if len(password) <= 5:
+        return False, "Password must be longer than 5 characters"
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        return False, "Password must contain at least one special character"
+    return True, ""
+
+def validate_email(email: str) -> tuple[bool, str]:
+    """Validate email: must contain @ and end with .in or .com"""
+    if not re.match(r"^[^@\s]+@[^@\s]+\.(in|com)$", email):
+        return False, "Email must contain @ and end with .in or .com"
+    return True, ""
+
+# Flask blueprint for CRUD operations with /api prefix
 bp = Blueprint("crud", __name__, url_prefix="/api")
 
 # Generic helpers
 
+# Convert SQLAlchemy model to dictionary, removing sensitive fields
 def to_dict(obj):
     d = {c.key: getattr(obj, c.key) for c in obj.__table__.columns}
+    # Convert UUID to string for JSON serialization
     for k, v in d.items():
         if isinstance(v, uuid.UUID):
             d[k] = str(v)
+    # Remove password field for security
     if 'password' in d:
         d.pop('password')
     return d
 
-# Users (admin and manager)
+# User Management Endpoints
+
+# Get all users - accessible by admin and manager
 @bp.get("/users")
 @require_auth(["admin", "manager"])
 def list_users():
@@ -27,6 +49,7 @@ def list_users():
         rows = s.scalars(select(User)).all()
         return jsonify([to_dict(r) for r in rows])
 
+# Create new user - admin only
 @bp.post("/users")
 @require_auth(["admin"])
 def create_user():
@@ -38,10 +61,17 @@ def create_user():
     if not all(field in data and data[field] for field in required_fields):
         return jsonify({"error": "Missing required fields"}), 400
 
-    # Email regex validation: must contain @ and end with .in
+    # Email validation: must contain @ and end with .in or .com
     email = data.get("email", "")
-    if not re.match(r"^[^@\s]+@[^@\s]+\.in$", email):
-        return jsonify({"error": "Email must contain @ and end with .in"}), 400
+    email_valid, email_error = validate_email(email)
+    if not email_valid:
+        return jsonify({"error": email_error}), 400
+
+    # Password validation
+    password = data.get("password", "")
+    password_valid, password_error = validate_password(password)
+    if not password_valid:
+        return jsonify({"error": password_error}), 400
 
     with SessionLocal() as s:
         # Check if email already exists
@@ -81,6 +111,7 @@ def create_user():
         s.refresh(row)
         return jsonify(to_dict(row)), 201
 
+# Update user - admin can update all fields, manager can only update role
 @bp.put("/users/<uuid:uid>")
 @require_auth(["admin", "manager"])
 def update_user(uid):
@@ -106,7 +137,17 @@ def update_user(uid):
         else:
             # Admin can update everything including password
             if "password" in data:
+                # Validate password before hashing
+                password_valid, password_error = validate_password(data["password"])
+                if not password_valid:
+                    return jsonify({"error": password_error}), 400
                 data["password"] = bcrypt.generate_password_hash(data["password"]).decode()
+            
+            # Validate email if being updated
+            if "email" in data:
+                email_valid, email_error = validate_email(data["email"])
+                if not email_valid:
+                    return jsonify({"error": email_error}), 400
             for k,v in data.items():
                 if k == "role":
                     try:
@@ -120,6 +161,7 @@ def update_user(uid):
         s.refresh(row)
         return jsonify(to_dict(row))
 
+# Delete user - admin only
 @bp.delete("/users/<uuid:uid>")
 @require_auth(["admin"])
 def delete_user(uid):
@@ -131,7 +173,7 @@ def delete_user(uid):
         s.commit()
         return jsonify({"ok": True})
 
-# Promote/Demote users (admin and manager)
+# Promote/demote users - change user roles (admin and manager only)
 @bp.post("/users/<uuid:uid>/promote")
 @require_auth(["admin", "manager"])
 def promote_user(uid):
@@ -149,7 +191,7 @@ def promote_user(uid):
         old_role = row.role.value
         row.role = UserRole(target_role)
         
-        # If demoting admin/manager to user, ensure patient record exists
+        # Create patient record when demoting admin/manager to user
         if old_role in ["admin", "manager"] and target_role == "user":
             existing_patient = s.get(Patient, row.id)
             if not existing_patient:
@@ -163,7 +205,7 @@ def promote_user(uid):
                 )
                 s.add(patient)
         
-        # If promoting user to admin/manager, remove patient record if exists
+        # Remove patient record when promoting user to admin/manager
         if old_role == "user" and target_role in ["admin", "manager"]:
             existing_patient = s.get(Patient, row.id)
             if existing_patient:
@@ -179,7 +221,9 @@ def promote_user(uid):
             "message": f"User role changed from {old_role} to {target_role}"
         })
 
-# Patients
+# Patient Management Endpoints
+
+# List all patients - admin only (patients access their own via /me)
 @bp.get("/patients")
 @require_auth(["admin"])  # admins list all; patients can fetch self via /me
 
@@ -188,6 +232,7 @@ def list_patients():
         rows = s.scalars(select(Patient)).all()
         return jsonify([to_dict(r) for r in rows])
 
+# Get specific patient by ID - admin only
 @bp.get("/patients/<uuid:pid>")
 @require_auth(["admin"])
 def get_patient(pid):
@@ -197,6 +242,7 @@ def get_patient(pid):
             return jsonify({"error":"Not found"}), 404
         return jsonify(to_dict(row))
 
+# Get current user's patient record - users and admins
 @bp.get("/patients/me")
 @require_auth(["user","admin"])
 def get_my_patient():
@@ -207,6 +253,7 @@ def get_my_patient():
             return jsonify({"error":"Not found"}), 404
         return jsonify(to_dict(row))
 
+# Update current user's patient record - users and admins
 @bp.put("/patients/me")
 @require_auth(["user","admin"])  # allow patient to update own info
 def update_my_patient():
@@ -221,6 +268,7 @@ def update_my_patient():
         s.commit()
         return jsonify(to_dict(row))
 
+# Create new patient - admin only
 @bp.post("/patients")
 @require_auth(["admin"])
 def create_patient():
@@ -232,6 +280,7 @@ def create_patient():
         s.refresh(p)
         return jsonify(to_dict(p)), 201
 
+# Update patient by ID - admin only
 @bp.put("/patients/<uuid:pid>")
 @require_auth(["admin"])
 def update_patient(pid):
@@ -245,6 +294,7 @@ def update_patient(pid):
         s.commit()
         return jsonify(to_dict(p))
 
+# Delete patient by ID - admin only
 @bp.delete("/patients/<uuid:pid>")
 @require_auth(["admin"])
 def delete_patient(pid):
@@ -256,7 +306,9 @@ def delete_patient(pid):
         s.commit()
         return jsonify({"ok": True})
 
-# Locations
+# Location Management Endpoints
+
+# List all locations - admin and users can view
 @bp.get("/locations")
 @require_auth(["admin","user"])
 def list_locations():
@@ -264,6 +316,7 @@ def list_locations():
         rows = s.scalars(select(Location)).all()
         return jsonify([to_dict(r) for r in rows])
 
+# Create new location - admin only
 @bp.post("/locations")
 @require_auth(["admin"])
 def create_location():
@@ -275,6 +328,7 @@ def create_location():
         s.refresh(row)
         return jsonify(to_dict(row)), 201
 
+# Update location by ID - admin only
 @bp.put("/locations/<uuid:rid>")
 @require_auth(["admin"])
 def update_location(rid):
@@ -288,6 +342,7 @@ def update_location(rid):
         s.commit()
         return jsonify(to_dict(row))
 
+# Delete location by ID - admin only
 @bp.delete("/locations/<uuid:rid>")
 @require_auth(["admin"])
 def delete_location(rid):
@@ -299,7 +354,9 @@ def delete_location(rid):
         s.commit()
         return jsonify({"ok": True})
 
-# Case Records
+# Case Record Management Endpoints
+
+# List all case records - admin only
 @bp.get("/case-records")
 @require_auth(["admin"])
 def list_cases():
@@ -307,6 +364,7 @@ def list_cases():
         rows = s.scalars(select(CaseRecord)).all()
         return jsonify([to_dict(r) for r in rows])
 
+# Create new case record - admin only
 @bp.post("/case-records")
 @require_auth(["admin"])
 def create_case():
@@ -318,6 +376,7 @@ def create_case():
         s.refresh(row)
         return jsonify(to_dict(row)), 201
 
+# Update case record by ID - admin only
 @bp.put("/case-records/<uuid:rid>")
 @require_auth(["admin"])
 def update_case(rid):
@@ -331,6 +390,7 @@ def update_case(rid):
         s.commit()
         return jsonify(to_dict(row))
 
+# Delete case record by ID - admin only
 @bp.delete("/case-records/<uuid:rid>")
 @require_auth(["admin"])
 def delete_case(rid):
@@ -342,7 +402,9 @@ def delete_case(rid):
         s.commit()
         return jsonify({"ok": True})
 
-# Vaccinations
+# Vaccination Management Endpoints
+
+# List all vaccinations - admin only
 @bp.get("/vaccinations")
 @require_auth(["admin"])
 def list_vax():
@@ -350,6 +412,7 @@ def list_vax():
         rows = s.scalars(select(Vaccination)).all()
         return jsonify([to_dict(r) for r in rows])
 
+# Create new vaccination - admin only, enforces same vaccine type for second dose
 @bp.post("/vaccinations")
 @require_auth(["admin"])
 def create_vax():
@@ -357,11 +420,12 @@ def create_vax():
     patient_id = data.get("patient_id")
     vaccine_type = data.get("vaccine_type")
     
+    # Validate required fields
     if not patient_id or not vaccine_type:
         return jsonify({"error": "patient_id and vaccine_type are required"}), 400
     
     with SessionLocal() as s:
-        # Check if patient has existing vaccinations
+        # Check for existing vaccinations to enforce vaccine type consistency
         existing_vax = s.scalars(
             select(Vaccination).where(Vaccination.patient_id == patient_id)
             .order_by(Vaccination.date.asc())
@@ -381,6 +445,7 @@ def create_vax():
         s.refresh(row)
         return jsonify(to_dict(row)), 201
 
+# Update vaccination by ID - admin only, enforces vaccine type consistency
 @bp.put("/vaccinations/<uuid:rid>")
 @require_auth(["admin"])
 def update_vax(rid):
@@ -390,7 +455,7 @@ def update_vax(rid):
         if not row:
             return jsonify({"error":"Not found"}), 404
         
-        # If updating vaccine_type, ensure consistency with other doses
+        # Validate vaccine type consistency when updating
         if "vaccine_type" in data:
             existing_vax = s.scalars(
                 select(Vaccination).where(Vaccination.patient_id == row.patient_id)
@@ -410,6 +475,7 @@ def update_vax(rid):
         s.commit()
         return jsonify(to_dict(row))
 
+# Delete vaccination by ID - admin only
 @bp.delete("/vaccinations/<uuid:rid>")
 @require_auth(["admin"])
 def delete_vax(rid):
@@ -421,15 +487,22 @@ def delete_vax(rid):
         s.commit()
         return jsonify({"ok": True})
 
-# Admin metrics
+# Admin Statistics Endpoint
+
+# Get dashboard metrics - admin only
 @bp.get("/admin/metrics")
 @require_auth(["admin"])
 def admin_metrics():
     with SessionLocal() as s:
+        # Count total patients
         total_patients = s.scalar(select(func.count(Patient.id))) or 0
+        # Count total vaccinations
         total_vax = s.scalar(select(func.count(Vaccination.id))) or 0
+        # Count active cases
         active = s.scalar(select(func.count()).select_from(CaseRecord).where(CaseRecord.status=="active")) or 0
+        # Count recovered cases
         recovered = s.scalar(select(func.count()).select_from(CaseRecord).where(CaseRecord.status=="recovered")) or 0
+        # Count deaths
         deaths = s.scalar(select(func.count()).select_from(CaseRecord).where(CaseRecord.status=="death")) or 0
         return jsonify({
             "patients": int(total_patients),

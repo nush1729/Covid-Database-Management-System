@@ -1,3 +1,4 @@
+# Notifications blueprint - handles patient and admin notification endpoints
 from flask import Blueprint, request, jsonify
 from sqlalchemy import select
 from datetime import date, timedelta
@@ -6,9 +7,11 @@ from ..extensions import SessionLocal
 from ..utils.auth import require_auth
 from ..models.models import CaseRecord, Vaccination, Patient
 
+# Create blueprint for notification routes
 bp = Blueprint("notifications", __name__, url_prefix="/api/notifications")
 
 
+# Get current user's notifications - vaccination due and retest reminders
 @bp.get("/me")
 @require_auth(["user","admin"])
 def my_notifications():
@@ -49,6 +52,7 @@ def my_notifications():
     return jsonify({"notifications": messages})
 
 
+# Get all patients with due notifications - admin only
 @bp.get("/admin/due")
 @require_auth(["admin"])
 def admin_due_notifications():

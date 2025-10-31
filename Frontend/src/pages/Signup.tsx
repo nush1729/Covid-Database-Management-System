@@ -25,13 +25,38 @@ const Signup = () => {
     const contact = (formData.get("contact") as string).trim();
     const dob = (formData.get("dob") as string).trim();
 
+    // Client-side validation
+    if (password.length <= 5) {
+      toast.error("Password must be longer than 5 characters");
+      setIsLoading(false);
+      return;
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      toast.error("Password must contain at least one special character");
+      setIsLoading(false);
+      return;
+    }
+    if (!/^[^@\s]+@[^@\s]+\.(in|com)$/.test(email)) {
+      toast.error("Email must contain @ and end with .in or .com");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ first_name, last_name, name, email, password, role: "user", contact, dob }),
       });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        const errorText = await res.text();
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.error || errorText);
+        } catch {
+          throw new Error(errorText);
+        }
+      }
       const json = await res.json();
       sessionStorage.setItem("jwt", json.token);
       sessionStorage.setItem("userRole", json.user.role);
@@ -39,8 +64,8 @@ const Signup = () => {
       sessionStorage.setItem("userId", json.user.id);
       toast.success("Account created. Welcome!");
       navigate("/patient");
-    } catch (err) {
-      toast.error("Sign up failed. Try another email.");
+    } catch (err: any) {
+      toast.error(err.message || "Sign up failed. Try another email.");
     }
 
     setIsLoading(false);
@@ -78,11 +103,27 @@ const Signup = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" name="email" type="email" required />
+                <Input 
+                  id="email" 
+                  name="email" 
+                  type="email" 
+                  placeholder="your.name@mail.in or your.name@mail.com"
+                  required 
+                />
+                <p className="text-xs text-muted-foreground">Must end with .in or .com</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" name="password" type="password" required />
+                <Input 
+                  id="password" 
+                  name="password" 
+                  type="password" 
+                  minLength={6}
+                  required 
+                />
+                <p className="text-xs text-muted-foreground">
+                  Must be longer than 5 characters and contain at least one special character (!@#$%^&*...)
+                </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">

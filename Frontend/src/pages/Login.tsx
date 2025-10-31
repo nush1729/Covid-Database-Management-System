@@ -146,7 +146,7 @@ const Login = () => {
                     id="patient-email"
                     name="email"
                     type="email"
-                    placeholder="your.name@mail.in"
+                    placeholder="your.name@mail.in or your.name@mail.com"
                     required
                     className="transition-all duration-300 ease-in-out focus:scale-105"
                   />

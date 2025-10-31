@@ -1,3 +1,4 @@
+# Flask CLI commands for database management
 import click
 from flask import Flask
 from .app import create_app
@@ -9,6 +10,7 @@ from sqlalchemy import select
 
 app = create_app()
 
+# CLI command: Count records in all tables
 @app.cli.command("count")
 def count():
     """Show quick counts of tables."""
@@ -22,6 +24,7 @@ def count():
         print("Vaccinations:", s.scalar(select(func.count(Vaccination.id))))
 
 
+# CLI command: Seed database with demo Indian data
 @app.cli.command("seed")
 def seed():
     """Insert demo Indian data: 10 users, locations, cases, vaccinations.
@@ -87,16 +90,16 @@ def seed():
         all_locs = s.scalars(select(Location)).all()
         patients = s.scalars(select(Patient)).all()
         today = date.today()
-        for p in patients:
-            # one case
+        for idx, p in enumerate(patients, start=1):
+            # Create one case record per patient
             if not s.scalar(select(CaseRecord).where(CaseRecord.patient_id==p.id)):
                 s.add(CaseRecord(patient_id=p.id, location_id=choice(all_locs).id, diag_date=today - timedelta(days=30), status=choice(statuses)))
-            # one or two vaccinations
+            # Create one or two vaccinations per patient
             if not s.scalar(select(Vaccination).where(Vaccination.patient_id==p.id)):
                 first_date = today - timedelta(days=200)
                 first_vax_type = choice(vaccines)
                 s.add(Vaccination(patient_id=p.id, date=first_date, vaccine_type=first_vax_type))
-                # randomly add second dose - MUST use same vaccine type as first dose
+                # Randomly add second dose - MUST use same vaccine type as first dose
                 if idx % 2 == 0:
                     s.add(Vaccination(patient_id=p.id, date=first_date + timedelta(days=30), vaccine_type=first_vax_type))
         s.commit()

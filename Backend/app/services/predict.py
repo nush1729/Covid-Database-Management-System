@@ -1,12 +1,15 @@
+# Prediction service - ARIMA-based COVID-19 trend forecasting
 import pandas as pd
 from statsmodels.tsa.arima.model import ARIMA
 import numpy as np
 from flask import Blueprint, request, jsonify
 from ..config import Config
 
+# Create blueprint for prediction routes
 bp = Blueprint("predict", __name__, url_prefix="/api/predict")
 
 
+# List all available states in the dataset
 @bp.get("/states")
 def list_states():
     # Auto-detect delimiter; normalize columns
@@ -19,6 +22,7 @@ def list_states():
     states = sorted(set(df["state"].dropna().astype(str)))
     return jsonify({"states": states})
 
+# Generate ARIMA forecast for a specific state
 @bp.get("/state/<state>")
 def forecast_state(state: str):
     horizon = int(request.args.get("days", 14))
@@ -73,13 +77,15 @@ def forecast_state(state: str):
     for label, col in series_map.items():
         if not col:
             continue
+        # Convert to numeric, forward-fill missing values
         s = pd.to_numeric(df[col], errors='coerce').fillna(method='ffill').fillna(0.0)
         if len(s) < 5:
             continue
         try:
-            # If series looks cumulative (mostly non-decreasing), forecast daily changes then re-accumulate
+            # For cumulative series (confirmed, recovered, deaths), forecast daily changes
             cumulative_like = label in ["recovered","confirmed","deaths"] and s.is_monotonic_increasing
             if cumulative_like and len(s) >= 6:
+                # Forecast daily changes, then accumulate back to levels
                 ds = s.diff().dropna()
                 ds = ds.clip(lower=0)
                 model = ARIMA(ds, order=(1,0,1))
@@ -89,20 +95,26 @@ def forecast_state(state: str):
                 acc = np.cumsum(fc_diff) + lvl
                 series_fc = acc
             else:
+                # For non-cumulative series (active cases), forecast directly
                 model = ARIMA(s, order=(1,1,1))
                 fit = model.fit()
                 series_fc = fit.forecast(steps=horizon)
 
+            # Format forecast results as date-value pairs
             results[label] = [{"date": d.date().isoformat(), label: float(v)} for d, v in zip(dates, series_fc)]
 
-            # Detailed analysis: last value, 7-day avg change, pct change, volatility, trend strength
+            # Calculate detailed statistics for analysis
             recent = s.tail(min(14, len(s)))
             last_val = float(recent.iloc[-1])
             last7 = recent.tail(min(7, len(recent)))
             prev7 = recent.head(max(0, len(recent)-len(last7)))
+            # Average daily change over last 7 days
             avg_change = float(last7.diff().mean() or 0)
+            # Percentage change between last 7 days and previous 7 days
             pct_change = float(((last7.mean() - (prev7.mean() if len(prev7) else last7.mean())) / max(1e-6, (prev7.mean() if len(prev7) else last7.mean()))) * 100)
+            # Volatility (standard deviation of daily changes)
             vol = float(last7.diff().std() or 0)
+            # Calculate linear trend and R² to measure trend strength
             x = np.arange(len(recent))
             if len(recent) >= 2:
                 slope, intercept = np.polyfit(x, recent.values, 1)
@@ -112,6 +124,7 @@ def forecast_state(state: str):
                 r2 = 1 - ss_res / ss_tot
             else:
                 slope = 0.0; r2 = 0.0
+            # Determine trend direction
             direction = "increasing" if slope > 0 else ("decreasing" if slope < 0 else "stable")
             analysis_lines.append(
                 f"{label.capitalize()}: last={last_val:.0f}, avg Δ7d={avg_change:.2f}, pct Δ≈{pct_change:.1f}%, volatility≈{vol:.2f}, trend {direction} (R²={r2:.2f})."

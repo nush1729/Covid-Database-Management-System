@@ -148,21 +148,27 @@ const PredictionsView = () => {
         <CardHeader>
           <CardTitle>About Predictions</CardTitle>
         </CardHeader>
-        <CardContent className="text-sm space-y-2">
-          <p>
-            <strong>About the ARIMA Forecast:</strong><br/>
-            These COVID-19 trend predictions use the ARIMA (AutoRegressive Integrated Moving Average) statistical model, leveraging past case, recovery, and vaccination data to forecast daily counts for each state. ARIMA is well-suited for pandemic time series as it accounts for changing patterns, seasonality, and the influence of earlier values. The charts above display estimated trends for confirmed cases, recoveries, active cases, and deaths for the next two weeks. <br/><br/>
-            <strong>How to Interpret:</strong> The prediction curves show where the outbreak appears to be trending—helping identify surges, peaks, or improvement. Please note: Real-world events (policy, new variants, vaccination drives) can impact actual numbers. Forecasts provide valuable planning guidance, but should not be taken as absolute.
-          </p>
-          {analysis ? (
-            <div className="space-y-1">
-              {analysis.split(".").filter(Boolean).map((line, i) => (
-                <p key={i}>• {line.trim()}.</p>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground">Select a state to view the forecast and analysis.</p>
-          )}
+        <CardContent className="text-sm space-y-4">
+          <div className="space-y-3">
+            <p>
+              <strong>About the ARIMA Forecast:</strong> These COVID-19 trend predictions use the ARIMA (AutoRegressive Integrated Moving Average) statistical model, leveraging past case, recovery, and vaccination data to forecast daily counts for each state. ARIMA is well-suited for pandemic time series as it accounts for changing patterns, seasonality, and the influence of earlier values. The charts above display estimated trends for confirmed cases, recoveries, active cases, and deaths for the next two weeks.
+            </p>
+            <p>
+              <strong>How to Interpret:</strong> The prediction curves show where the outbreak appears to be trending—helping identify surges, peaks, or improvement. Please note: Real-world events (policy, new variants, vaccination drives) can impact actual numbers. Forecasts provide valuable planning guidance, but should not be taken as absolute.
+            </p>
+            {analysis ? (
+              <p>
+                {analysis.split(".").filter(Boolean).map((line, i, arr) => (
+                  <span key={i}>
+                    {line.trim()}
+                    {i < arr.length - 1 ? ". " : "."}
+                  </span>
+                ))}
+              </p>
+            ) : (
+              <p className="text-muted-foreground">Select a state to view the forecast and analysis.</p>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

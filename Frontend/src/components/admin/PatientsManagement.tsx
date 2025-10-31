@@ -176,10 +176,12 @@ const PatientsManagement = ({ onUpdate }: PatientsManagementProps) => {
                   id="email"
                   name="email"
                   type="email"
+                  placeholder="user@mail.in or user@mail.com"
                   required
                   defaultValue={editingPatient?.email}
                   autoComplete="username"
                 />
+                <p className="text-xs text-muted-foreground">Must end with .in or .com</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
@@ -191,6 +193,9 @@ const PatientsManagement = ({ onUpdate }: PatientsManagementProps) => {
                   required={!editingPatient}
                   autoComplete="new-password"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Must be longer than 5 characters and contain at least one special character
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="dob">Date of Birth</Label>
